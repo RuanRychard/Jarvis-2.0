@@ -1,0 +1,1782 @@
+{
+  "updatedAt": "2026-06-11T21:12:47.677Z",
+  "createdAt": "2026-05-27T18:13:38.506Z",
+  "id": "WzEKkdI0liWrCXny",
+  "name": "Jarvis Pessoal - Ollama Local + Tavily",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jarvis",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "jarvis-webhook",
+      "name": "Webhook Jarvis",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -160
+      ],
+      "webhookId": "jarvis"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "valid-token",
+              "leftValue": "={{ !$env.JARVIS_WEBHOOK_TOKEN || $json.headers?.['x-jarvis-token'] === $env.JARVIS_WEBHOOK_TOKEN }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate-token",
+      "name": "Validar Token",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "prepare-input",
+      "name": "Preparar Entrada",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        448,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "needs-search-true",
+              "leftValue": "={{ /(hoje|agora|atual|atuais|noticia|noticias|ultimas|ultimas|pesquise|pesquisar|procure|buscar|busque|internet|web|site|preco|preco|cotacao|cotacao|clima|tempo|resultado|placar|lancamento|lancamento|recente|dolar|dolar|euro|bolsa|ibovespa|bitcoin|btc)/i.test($json.message || '') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-search-needed",
+      "name": "Precisa Pesquisar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        896,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.TAVILY_API_KEY || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": {{ $node['Preparar Entrada'].json.message.toJsonString() }},\n  \"topic\": \"general\",\n  \"search_depth\": \"basic\",\n  \"max_results\": 5,\n  \"include_answer\": \"basic\",\n  \"include_raw_content\": false\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "call-tavily",
+      "name": "Pesquisar com Tavily",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "format-search",
+      "name": "Formatar Pesquisa",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        1344,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "skip-search",
+      "name": "Sem Pesquisa",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        1328,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": {{('Voce e Jarvis, assistente pessoal em portugues do Brasil. Chame o usuario de Chefe. Responda de forma curta, clara e acionavel. Se houver pesquisa Tavily abaixo, use-a como contexto atual. Se nao houver pesquisa, nao finja acesso em tempo real.\\n\\nMensagem do usuario: ' + ($json.message || '') + '\\n\\nPesquisa Tavily:\\n' + ($json.searchContext || 'Nao foi necessario pesquisar na web para esta resposta.') + '\\n\\nResposta do Jarvis:').toJsonString()}},\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.35,\n    \"num_predict\": 300\n  }\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "call-ollama",
+      "name": "Chamar Ollama Local",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1632,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-email-service",
+              "leftValue": "={{ (($json.integrationService || $json.body?.profile?.actionIntent?.service || $json.profile?.actionIntent?.service || '') + '').toLowerCase() === 'email' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-email",
+      "name": "E Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": "={{ $json.actionIntent?.limit || $json.body?.profile?.actionIntent?.limit || $json.profile?.actionIntent?.limit || 8 }}",
+        "filters": {
+          "includeSpamTrash": false,
+          "q": "={{ (() => { const intent = $json.actionIntent || $json.body?.profile?.actionIntent || $json.profile?.actionIntent || {}; const op = $json.integrationOperation || intent.operation || 'summarize_inbox'; const q = (intent.query || $json.integrationQuery || '').trim(); const from = (intent.from || '').trim(); const subject = (intent.subject || '').trim(); const after = (intent.after || '').trim(); const before = (intent.before || '').trim(); const newer = intent.newer || (op === 'career_emails' ? '30d' : '7d'); const parts = ['in:inbox']; if (q) parts.push(q); if (from) parts.push('from:' + from); if (subject) parts.push('subject:' + subject); if (after) parts.push('after:' + after); if (before) parts.push('before:' + before); if (!after && !before && newer) parts.push('newer_than:' + newer); if (!q && op === 'important_emails') parts.push('(is:important OR is:starred OR newer_than:2d)'); if (!q && op === 'career_emails') parts.push('(vaga OR estagio OR curriculo OR entrevista OR recrutador OR candidatura)'); return parts.join(' '); })() }}",
+          "readStatus": "both"
+        }
+      },
+      "id": "gmail-read-messages",
+      "name": "Gmail - ler emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        -416
+      ],
+      "webhookId": "d45a26ce-9826-4e92-95a7-dc4cc4f78bff",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o5esWK0fAiAsEyg5",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const emails = $input.all().map((item) => item.json || {});\nconst prepared = $('Preparar Entrada').first().json;\nconst intent = prepared.actionIntent || prepared.body?.profile?.actionIntent || prepared.profile?.actionIntent || {};\nconst operation = prepared.integrationOperation || intent.operation || 'summarize_inbox';\n\nconst titles = {\n  important_emails: 'emails importantes',\n  career_emails: 'emails sobre carreira/estagio',\n  search_emails: intent.query ? 'emails sobre ' + intent.query : 'emails encontrados',\n  summarize_inbox: 'emails recentes'\n};\nconst title = titles[operation] || 'emails recentes';\n\nfunction clean(value) {\n  return String(value || '')\n    .replace(/[\\u200B-\\u200F\\uFEFF]/g, '')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction hasAny(text, words) {\n  const lower = text.toLowerCase();\n  return words.some((word) => lower.includes(word));\n}\n\nfunction getSender(email) {\n  return clean(email.From || email.from || email.sender || email.To || email.to || 'remetente nao identificado');\n}\n\nfunction classify(email) {\n  const subject = clean(email.Subject || email.subject || 'sem assunto');\n  const from = getSender(email);\n  const snippet = clean(email.snippet || email.textPlain || email.text || '');\n  const haystack = [subject, from, snippet].join(' ').toLowerCase();\n  const labels = [];\n  let score = 0;\n  let reason = '';\n\n  if (hasAny(haystack, ['urgente', 'important', 'importante', 'deadline', 'prazo', 'vence', 'vencimento', 'acao necessaria', 'action required'])) {\n    labels.push('alta prioridade');\n    score += 5;\n    reason ||= 'parece exigir atencao ou prazo';\n  }\n\n  if (hasAny(haystack, ['vaga', 'estagio', 'est?gio', 'entrevista', 'curriculo', 'curr?culo', 'recrutador', 'recrutamento', 'candidatura', 'processo seletivo', 'job opportunity', 'career opportunity'])) {\n    labels.push('carreira/estagio');\n    score += 4;\n    reason ||= 'pode estar ligado a oportunidade profissional';\n  }\n\n  if (hasAny(haystack, ['boleto', 'fatura', 'pagamento', 'cobranca', 'cobran?a', 'invoice', 'recibo', 'assinatura', 'compra', 'pedido', 'pix', 'cartao', 'cart?o'])) {\n    labels.push('financeiro');\n    score += 3;\n    reason ||= 'envolve dinheiro, compra ou assinatura';\n  }\n\n  if (hasAny(haystack, ['codigo', 'c?digo', 'verificacao', 'verifica??o', 'security', 'senha', 'login', 'acesso'])) {\n    labels.push('seguranca');\n    score += 3;\n    reason ||= 'pode envolver acesso ou seguranca da conta';\n  }\n\n  if (hasAny(haystack, ['ollama', 'claude', 'github', 'google cloud', 'docker', 'api', 'model'])) {\n    labels.push('tecnologia/aprendizado');\n    score += 2;\n    reason ||= 'tem relacao com tecnologia ou estudos';\n  }\n\n  if (hasAny(haystack, ['oferta', 'promo', 'desconto', 'prime video', 'paramount', 'facebook', 'newsletter', 'recomendacoes', 'recomenda??es', 'cinema'])) {\n    labels.push('notificacao/promocao');\n    score -= 1;\n    reason ||= 'parece notificacao ou promocao';\n  }\n\n  if (!labels.length) labels.push('geral');\n  if (!reason) reason = 'vale revisar quando sobrar tempo';\n\n  let task = '';\n  if (labels.includes('alta prioridade')) task = 'Revisar email urgente: ' + subject;\n  else if (labels.includes('carreira/estagio')) task = 'Avaliar oportunidade de carreira: ' + subject;\n  else if (labels.includes('financeiro')) task = 'Conferir item financeiro: ' + subject;\n  else if (labels.includes('seguranca')) task = 'Verificar alerta de seguranca: ' + subject;\n\n  return {\n    subject,\n    from,\n    date: clean(email.Date || email.date || ''),\n    preview: snippet.slice(0, 180),\n    labels,\n    score,\n    reason,\n    task\n  };\n}\n\nif (!emails.length) {\n  return [{ json: { reply: 'Chefe, nao encontrei ' + title + ' com o filtro atual.', service: 'email', operation, count: 0, suggestedTasks: [] } }];\n}\n\nconst classified = emails.map(classify).sort((a, b) => b.score - a.score);\nconst counts = {\n  alta: classified.filter((email) => email.labels.includes('alta prioridade')).length,\n  carreira: classified.filter((email) => email.labels.includes('carreira/estagio')).length,\n  financeiro: classified.filter((email) => email.labels.includes('financeiro')).length,\n  seguranca: classified.filter((email) => email.labels.includes('seguranca')).length,\n  notificacoes: classified.filter((email) => email.labels.includes('notificacao/promocao')).length\n};\n\nconst top = classified.slice(0, 5);\nconst lines = top.map((email, index) => {\n  const category = email.labels[0];\n  const date = email.date ? ' - ' + email.date : '';\n  const preview = email.preview ? ' Trecho: ' + email.preview : '';\n  return (index + 1) + '. [' + category + '] ' + email.subject + ' - ' + email.from + date + '. Motivo: ' + email.reason + '.' + preview;\n});\n\nconst suggestedTasks = classified\n  .filter((email) => email.task)\n  .slice(0, 5)\n  .map((email) => email.task);\n\nconst nextActions = [];\nif (counts.alta) nextActions.push('ver os de alta prioridade primeiro');\nif (counts.carreira) nextActions.push('separar oportunidades de carreira/estagio');\nif (counts.financeiro) nextActions.push('conferir pagamentos ou assinaturas');\nif (!nextActions.length && counts.notificacoes) nextActions.push('arquivar notificacoes e promocoes sem urgencia');\nif (!nextActions.length) nextActions.push('revisar apenas os principais quando tiver alguns minutos');\n\nconst summary = [\n  'Chefe, fiz uma triagem de ' + emails.length + ' ' + title + '.',\n  'Mapa rapido: alta prioridade ' + counts.alta + '; carreira/estagio ' + counts.carreira + '; financeiro ' + counts.financeiro + '; seguranca ' + counts.seguranca + '; notificacoes/promocoes ' + counts.notificacoes + '.',\n  'Mais relevantes:',\n  ...lines,\n  suggestedTasks.length ? 'Tarefas sugeridas: ' + suggestedTasks.slice(0, 3).join('; ') + '.' : '',\n  'Proxima acao sugerida: ' + nextActions.slice(0, 2).join('; ') + '.'\n].filter(Boolean);\n\nreturn [{\n  json: {\n    reply: summary.join('\\n\\n'),\n    service: 'email',\n    operation,\n    count: emails.length,\n    triage: counts,\n    suggestedTasks\n  }\n}];"
+      },
+      "id": "gmail-format-reply",
+      "name": "Gmail - resumir para Jarvis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-email-draft",
+              "leftValue": "={{ ['draft_email','prepare_email'].includes(($json.integrationOperation || $json.body?.profile?.actionIntent?.operation || $json.profile?.actionIntent?.operation || '').toString()) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-email-draft",
+      "name": "E Rascunho Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Entrada').first().json;\nconst intent = prepared.actionIntent || prepared.body?.profile?.actionIntent || prepared.profile?.actionIntent || {};\nconst text = String(prepared.message || prepared.body?.message || '').trim();\n\nfunction clean(value) {\n  return String(value || '').replace(/\\s+/g, ' ').trim();\n}\n\nfunction extractEmail(value) {\n  const match = String(value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i);\n  return match ? match[0] : '';\n}\n\nfunction stripCommand(value) {\n  return clean(String(value || '')\n    .replace(/^(jarvis[, ]*)?/i, '')\n    .replace(/\\b(prepare|preparar|crie|criar|faca|redija|escreva)\\b/gi, '')\n    .replace(/\\b(um|uma)?\\s*(rascunho|email|e-mail|gmail|resposta)\\b/gi, '')\n    .replace(/\\b(para|pro|pra)\\b\\s*[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig, '')\n  );\n}\n\nconst to = intent.to || extractEmail(text);\nconst subjectHint = clean(intent.subject || (text.match(/(?:assunto|titulo)[: ]+([^.;]+)/i)?.[1]) || '');\nconst request = stripCommand(intent.query || text) || 'Agradecer o contato e informar que retornarei em breve.';\nconst fallbackSubject = subjectHint || 'Mensagem';\nconst fallbackMessage = ['Ola,', '', request, '', 'Atenciosamente,'].join('\\n');\n\nif (!to) {\n  return [{ json: {\n    reply: 'Chefe, consigo preparar o rascunho, mas preciso do destinatario. Diga algo como: prepare um rascunho para pessoa@email.com sobre o assunto.',\n    service: 'email',\n    operation: 'draft_email',\n    needsRecipient: true\n  } }];\n}\n\nreturn [{ json: {\n  to,\n  subjectHint,\n  request,\n  subject: fallbackSubject,\n  message: fallbackMessage,\n  service: 'email',\n  operation: 'draft_email'\n} }];"
+      },
+      "id": "gmail-prepare-draft",
+      "name": "Preparar Rascunho Gmail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.message }}",
+        "options": {
+          "sendTo": "={{ $json.to }}"
+        }
+      },
+      "id": "gmail-create-draft",
+      "name": "Gmail - criar rascunho",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1744,
+        -464
+      ],
+      "webhookId": "60c1f670-1c6d-4cb7-ad5c-4db91e5e2202",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o5esWK0fAiAsEyg5",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $input.first().json || {};\nconst generated = $('Formatar Rascunho IA').first().json;\nconst id = draft.id || draft.message?.id || draft.messageId || 'rascunho criado';\nreturn [{ json: {\n  reply: 'Chefe, rascunho inteligente criado no Gmail. Destinatario: ' + generated.to + '. Assunto: ' + generated.subject + '. Revise no Gmail. Para enviar, diga: confirmar envio. Para cancelar, diga: cancelar envio. ID: ' + id + '.',\n  service: 'email',\n  operation: 'draft_email',\n  draftId: id,\n  generatedBy: generated.generatedBy,\n  pendingEmailDraft: {\n    to: generated.to,\n    subject: generated.subject,\n    message: generated.message,\n    draftId: id\n  }\n} }];"
+      },
+      "id": "gmail-format-draft",
+      "name": "Gmail - confirmar rascunho",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-send-confirmed",
+              "leftValue": "={{ (($json.integrationOperation || $json.body?.profile?.actionIntent?.operation || $json.profile?.actionIntent?.operation || '') + '') === 'send_email_confirmed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-email-send-confirmed",
+      "name": "E Envio Confirmado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Entrada').first().json;\nconst intent = prepared.actionIntent || prepared.body?.profile?.actionIntent || prepared.profile?.actionIntent || {};\n\nfunction clean(value) {\n  return String(value || '').replace(/\\s+/g, ' ').trim();\n}\n\nconst confirmed = intent.confirmed === true || intent.confirmed === 'true';\nconst to = clean(intent.to);\nconst subject = clean(intent.subject || 'Resposta do Jarvis');\nconst message = String(intent.message || '').trim();\n\nif (!confirmed) {\n  return [{ json: {\n    reply: 'Chefe, bloqueei o envio porque faltou confirmacao explicita.',\n    service: 'email',\n    operation: 'send_email_confirmed',\n    blocked: true\n  } }];\n}\n\nif (!to || !message) {\n  return [{ json: {\n    reply: 'Chefe, nao consegui enviar: faltam destinatario ou corpo do email. Prepare um rascunho de novo e confirme em seguida.',\n    service: 'email',\n    operation: 'send_email_confirmed',\n    blocked: true\n  } }];\n}\n\nreturn [{ json: { to, subject, message, service: 'email', operation: 'send_email_confirmed' } }];"
+      },
+      "id": "gmail-prepare-send",
+      "name": "Preparar Envio Gmail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "gmail-send-confirmed",
+      "name": "Gmail - enviar confirmado",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        -704
+      ],
+      "webhookId": "ba0d3793-b35a-4949-98ce-273f03c0a492",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o5esWK0fAiAsEyg5",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sent = $input.first().json || {};\nconst prepared = $('Preparar Envio Gmail').first().json;\nconst id = sent.id || sent.messageId || 'enviado';\nreturn [{ json: {\n  reply: 'Email enviado, Chefe. Destinatario: ' + prepared.to + '. Assunto: ' + prepared.subject + '. ID: ' + id + '.',\n  service: 'email',\n  operation: 'send_email_confirmed',\n  sent: true,\n  messageId: id\n} }];"
+      },
+      "id": "gmail-format-send",
+      "name": "Gmail - confirmar envio ao Jarvis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-send-email",
+              "leftValue": "={{ $json.blocked !== true && !!$json.to && !!$json.message }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "can-send-email",
+      "name": "Pode Enviar Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nreturn [{ json: {\n  reply: item.reply || 'Chefe, envio bloqueado. Crie um rascunho e confirme explicitamente antes de enviar.',\n  service: 'email',\n  operation: 'send_email_confirmed',\n  blocked: true\n} }];"
+      },
+      "id": "gmail-block-send",
+      "name": "Gmail - bloquear envio sem confirmacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-create-draft",
+              "leftValue": "={{ $json.needsRecipient !== true && !!$json.to && !!$json.message }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "can-create-draft",
+      "name": "Pode Criar Rascunho?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nreturn [{ json: {\n  reply: item.reply || 'Chefe, preciso do email do destinatario para criar o rascunho.',\n  service: 'email',\n  operation: 'draft_email',\n  needsRecipient: true\n} }];"
+      },
+      "id": "gmail-request-recipient",
+      "name": "Gmail - pedir destinatario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2:3b\",\n  \"format\": \"json\",\n  \"prompt\": {{('Voce redige emails profissionais em portugues do Brasil. Retorne somente um objeto JSON valido com duas chaves: subject e message. Escreva um email natural, claro e apropriado ao pedido, sem inventar fatos, nomes, datas, compromissos ou anexos. Use no maximo 4 paragrafos curtos. Nunca use placeholders entre colchetes. Quando nao souber o nome, comece com Ola,. Quando nao souber o nome do remetente, termine apenas com Atenciosamente,. Destinatario: ' + ($json.to || '') + '\\nAssunto sugerido: ' + ($json.subjectHint || 'nenhum') + '\\nPedido: ' + ($json.request || '')).toJsonString()}},\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.35,\n    \"num_predict\": 420\n  }\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "gmail-draft-ollama",
+      "name": "Redigir Rascunho com Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1408,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Rascunho Gmail').first().json;\nconst raw = String($json.response || $json.message || '').trim();\n\nfunction cleanLine(value) {\n  return String(value || '').replace(/^[#*`\\s]+|[#*`\\s]+$/g, '').replace(/\\s+/g, ' ').trim();\n}\n\nlet subject = prepared.subjectHint || prepared.subject || 'Mensagem';\nlet message = prepared.message || '';\nlet generatedBy = 'fallback';\n\nif (raw) {\n  try {\n    const parsed = JSON.parse(raw);\n    if (parsed.subject) subject = cleanLine(parsed.subject);\n    if (parsed.message) message = String(parsed.message).trim();\n    generatedBy = 'ollama';\n  } catch {\n    const subjectMatch = raw.match(/ASSUNTO\\s*:\\s*([^\\n\\r]+)/i);\n    const bodyMatch = raw.match(/CORPO\\s*:\\s*([\\s\\S]+)/i);\n    if (subjectMatch?.[1]) subject = cleanLine(subjectMatch[1]);\n    if (bodyMatch?.[1]) message = bodyMatch[1].trim();\n    else message = raw.trim();\n    generatedBy = 'ollama-fallback';\n  }\n}\n\nsubject = cleanLine(subject).slice(0, 180) || 'Mensagem';\nmessage = String(message || prepared.message || '')\n  .replace(/\\[[^\\]\\n]{1,80}\\]/g, '')\n  .replace(/^[ \\t]+$/gm, '')\n  .replace(/\\n{3,}/g, '\\n\\n')\n  .trim()\n  .slice(0, 5000);\n\nif (!message) message = prepared.message || 'Ola,\\n\\nObrigado pelo contato.\\n\\nAtenciosamente,';\n\nreturn [{ json: {\n  to: prepared.to,\n  subject,\n  message,\n  request: prepared.request,\n  service: 'email',\n  operation: 'draft_email',\n  generatedBy\n} }];"
+      },
+      "id": "gmail-format-ai-draft",
+      "name": "Formatar Rascunho IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-calendar-service",
+              "leftValue": "={{ (($json.integrationService || $json.body?.profile?.actionIntent?.service || $json.profile?.actionIntent?.service || '') + '').toLowerCase() === 'calendar' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-calendar",
+      "name": "E Agenda?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-calendar-create-confirmed",
+              "leftValue": "={{ (($json.integrationOperation || $json.body?.profile?.actionIntent?.operation || $json.profile?.actionIntent?.operation || '') + '') === 'create_calendar_event_confirmed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-calendar-create",
+      "name": "E Criacao de Evento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        992,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "calendar": {
+          "mode": "list",
+          "value": "primary"
+        },
+        "returnAll": false,
+        "limit": "={{ $json.actionIntent?.limit || $json.body?.profile?.actionIntent?.limit || 10 }}",
+        "timeMin": "={{ $json.actionIntent?.start || $json.body?.profile?.actionIntent?.start || $now.toISO() }}",
+        "timeMax": "={{ $json.actionIntent?.end || $json.body?.profile?.actionIntent?.end || $now.plus({ week: 1 }).toISO() }}",
+        "options": {
+          "singleEvents": true,
+          "orderBy": "startTime"
+        }
+      },
+      "id": "calendar-list-events",
+      "name": "Agenda - listar eventos",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        160
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tinSmqtCbZqwHXyz",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $input.all()\n  .map((item) => item.json || {})\n  .filter((event) => event.id || event.summary || event.start?.dateTime || event.start?.date);\n\nfunction formatDate(value) {\n  if (!value) return 'horario nao informado';\n  const date = new Date(value);\n  if (Number.isNaN(date.getTime())) return String(value);\n  return new Intl.DateTimeFormat('pt-BR', {\n    timeZone: 'America/Sao_Paulo',\n    weekday: 'short',\n    day: '2-digit',\n    month: '2-digit',\n    hour: '2-digit',\n    minute: '2-digit'\n  }).format(date);\n}\n\nconst calendarEvents = events.slice(0, 30).map((event) => ({\n  id: event.id || '',\n  title: event.summary || 'Evento sem titulo',\n  start: event.start?.dateTime || event.start?.date || '',\n  end: event.end?.dateTime || event.end?.date || ''\n}));\n\nif (!events.length) {\n  return [{ json: {\n    reply: 'Chefe, nao encontrei compromissos no periodo consultado.',\n    service: 'calendar',\n    operation: 'list_calendar_events',\n    count: 0,\n    calendarEvents: []\n  } }];\n}\n\nconst lines = calendarEvents.slice(0, 10).map((event, index) =>\n  (index + 1) + '. ' + event.title + ' - ' + formatDate(event.start)\n);\n\nreturn [{ json: {\n  reply: 'Chefe, encontrei ' + events.length + ' compromisso(s):\\n' + lines.join('\\n'),\n  service: 'calendar',\n  operation: 'list_calendar_events',\n  count: events.length,\n  calendarEvents\n} }];"
+      },
+      "id": "calendar-format-events",
+      "name": "Agenda - resumir para Jarvis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Entrada').first().json;\nconst intent = prepared.actionIntent || prepared.body?.profile?.actionIntent || prepared.profile?.actionIntent || {};\nconst confirmed = intent.confirmed === true || intent.confirmed === 'true';\nconst title = String(intent.title || '').trim();\nconst start = String(intent.start || '').trim();\nconst end = String(intent.end || '').trim();\nconst description = String(intent.description || '').trim();\nconst rawReminder = intent.reminderMinutes;\nconst reminderMinutes = rawReminder === null || rawReminder === undefined || rawReminder === ''\n  ? null\n  : Math.min(40320, Math.max(0, Number(rawReminder)));\n\nif (!confirmed || !title || !start || !end) {\n  return [{ json: {\n    reply: 'Chefe, bloqueei a criacao do evento porque faltou confirmacao, titulo, inicio ou fim.',\n    service: 'calendar',\n    operation: 'create_calendar_event_confirmed',\n    blocked: true\n  } }];\n}\n\nreturn [{ json: {\n  title,\n  start,\n  end,\n  description,\n  reminderMinutes: Number.isFinite(reminderMinutes) ? reminderMinutes : null,\n  service: 'calendar',\n  operation: 'create_calendar_event_confirmed',\n  blocked: false\n} }];"
+      },
+      "id": "calendar-prepare-create",
+      "name": "Preparar Evento Agenda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-create-calendar-event",
+              "leftValue": "={{ $json.blocked !== true && !!$json.title && !!$json.start && !!$json.end }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "calendar-can-create",
+      "name": "Pode Criar Evento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "mode": "list",
+          "value": "primary"
+        },
+        "start": "={{ $json.start }}",
+        "end": "={{ $json.end }}",
+        "useDefaultReminders": "={{ $json.reminderMinutes === null }}",
+        "additionalFields": {
+          "summary": "={{ $json.title }}",
+          "description": "={{ $json.description }}"
+        },
+        "remindersUi": {
+          "remindersValues": [
+            {
+              "method": "popup",
+              "minutes": "={{ $json.reminderMinutes }}"
+            }
+          ]
+        }
+      },
+      "id": "calendar-create-event",
+      "name": "Agenda - criar evento",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        -112
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tinSmqtCbZqwHXyz",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $input.first().json || {};\nconst prepared = $('Preparar Evento Agenda').first().json;\nconst reminder = prepared.reminderMinutes === null\n  ? 'Lembretes padrao do Google Agenda.'\n  : 'Lembrete por popup ' + prepared.reminderMinutes + ' minuto(s) antes.';\nreturn [{ json: {\n  reply: 'Evento criado no Google Agenda, Chefe. Titulo: ' + prepared.title + '. Inicio: ' + prepared.start + '. ' + reminder,\n  service: 'calendar',\n  operation: 'create_calendar_event_confirmed',\n  created: true,\n  eventId: event.id || '',\n  reminderMinutes: prepared.reminderMinutes\n} }];"
+      },
+      "id": "calendar-format-created",
+      "name": "Agenda - confirmar criacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-calendar-update",
+              "leftValue": "={{ (($json.integrationOperation || $json.body?.profile?.actionIntent?.operation || $json.profile?.actionIntent?.operation || '') + '') === 'update_calendar_event_confirmed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-calendar-update",
+      "name": "E Alteracao de Evento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-calendar-delete",
+              "leftValue": "={{ (($json.integrationOperation || $json.body?.profile?.actionIntent?.operation || $json.profile?.actionIntent?.operation || '') + '') === 'delete_calendar_event_confirmed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-calendar-delete",
+      "name": "E Exclusao de Evento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Entrada').first().json;\nconst intent = prepared.actionIntent || prepared.body?.profile?.actionIntent || prepared.profile?.actionIntent || {};\nconst confirmed = intent.confirmed === true || intent.confirmed === 'true';\nconst eventId = String(intent.eventId || '').trim();\nconst title = String(intent.title || '').trim();\nconst start = String(intent.start || '').trim();\nconst end = String(intent.end || '').trim();\nif (!confirmed || !eventId || !start || !end) {\n  return [{ json: { reply: 'Chefe, bloqueei a alteracao porque faltou confirmacao ou dados do evento.', blocked: true } }];\n}\nreturn [{ json: { eventId, title, start, end, blocked: false } }];"
+      },
+      "id": "calendar-prepare-update",
+      "name": "Preparar Alteracao Agenda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-update-calendar-event",
+              "leftValue": "={{ $json.blocked !== true && !!$json.eventId && !!$json.start && !!$json.end }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "calendar-can-update",
+      "name": "Pode Alterar Evento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "update",
+        "calendar": {
+          "mode": "list",
+          "value": "primary"
+        },
+        "eventId": "={{ $json.eventId }}",
+        "useDefaultReminders": true,
+        "updateFields": {
+          "start": "={{ $json.start }}",
+          "end": "={{ $json.end }}",
+          "summary": "={{ $json.title }}"
+        }
+      },
+      "id": "calendar-update-event",
+      "name": "Agenda - alterar evento",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1632,
+        -176
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tinSmqtCbZqwHXyz",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Alteracao Agenda').first().json;\nreturn [{ json: {\n  reply: 'Evento alterado no Google Agenda, Chefe. Titulo: ' + prepared.title + '. Novo inicio: ' + prepared.start + '.',\n  service: 'calendar',\n  operation: 'update_calendar_event_confirmed',\n  updated: true\n} }];"
+      },
+      "id": "calendar-format-updated",
+      "name": "Agenda - confirmar alteracao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Entrada').first().json;\nconst intent = prepared.actionIntent || prepared.body?.profile?.actionIntent || prepared.profile?.actionIntent || {};\nconst confirmed = intent.confirmed === true || intent.confirmed === 'true';\nconst eventId = String(intent.eventId || '').trim();\nconst title = String(intent.title || '').trim();\nif (!confirmed || !eventId) {\n  return [{ json: { reply: 'Chefe, bloqueei a exclusao porque faltou confirmacao ou identificacao do evento.', blocked: true } }];\n}\nreturn [{ json: { eventId, title, blocked: false } }];"
+      },
+      "id": "calendar-prepare-delete",
+      "name": "Preparar Exclusao Agenda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-delete-calendar-event",
+              "leftValue": "={{ $json.blocked !== true && !!$json.eventId }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "calendar-can-delete",
+      "name": "Pode Excluir Evento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nreturn [{ json: {\n  reply: item.reply || 'Chefe, bloqueei a acao na Agenda porque faltou confirmacao explicita.',\n  service: 'calendar',\n  blocked: true\n} }];"
+      },
+      "id": "calendar-block-action",
+      "name": "Agenda - bloquear acao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "delete",
+        "calendar": {
+          "mode": "list",
+          "value": "primary"
+        },
+        "eventId": "={{ $json.eventId }}",
+        "options": {}
+      },
+      "id": "calendar-delete-event",
+      "name": "Agenda - excluir evento",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1792,
+        32
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tinSmqtCbZqwHXyz",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Exclusao Agenda').first().json;\nreturn [{ json: {\n  reply: 'Evento excluido do Google Agenda, Chefe. Titulo: ' + (prepared.title || 'Compromisso') + '.',\n  service: 'calendar',\n  operation: 'delete_calendar_event_confirmed',\n  deleted: true\n} }];"
+      },
+      "id": "calendar-format-deleted",
+      "name": "Agenda - confirmar exclusao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "fe38165a-ce97-42b5-a195-799b250d3607",
+              "leftValue": "={{ (($json.integrationService || $json.body?.profile?.actionIntent?.service || $json.profile?.actionIntent?.service || '') + '').toLowerCase() }}",
+              "rightValue": "whatsapp",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-whatsapp",
+      "name": "E WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        992,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "d58008fb-7d0e-46fc-acf4-b946d37ea6ff",
+              "leftValue": "={{ (($json.integrationOperation || $json.body?.profile?.actionIntent?.operation || $json.profile?.actionIntent?.operation || '') + '') }}",
+              "rightValue": "send_whatsapp_confirmed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-whatsapp-send",
+      "name": "E Envio WhatsApp Confirmado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Entrada').first().json;\nconst intent = $json.actionIntent || $json.body?.profile?.actionIntent || $json.profile?.actionIntent || {};\nconst confirmed = intent.confirmed === true || intent.confirmed === 'true';\nconst to = String(intent.to || '').replace(/\\D/g, '');\nconst message = String(intent.message || '').trim();\nconst validPhone = /^\\d{10,15}$/.test(to);\nconst configured = Boolean($env.WHATSAPP_ACCESS_TOKEN && $env.WHATSAPP_PHONE_NUMBER_ID && /^v\\d+\\.\\d+$/.test($env.WHATSAPP_GRAPH_API_VERSION || ''));\nconst blocked = !confirmed || !validPhone || !message || !configured;\nconst reply = !configured\n  ? 'Chefe, a conexao oficial do WhatsApp ainda precisa do token, ID do numero e versao da API no arquivo .env.'\n  : 'Chefe, bloqueei o WhatsApp porque faltou confirmacao, telefone valido ou mensagem.';\nreturn [{ json: {\n  to,\n  message,\n  blocked,\n  service: 'whatsapp',\n  operation: 'send_whatsapp_confirmed',\n  reply: blocked ? reply : ''\n} }];"
+      },
+      "id": "prepare-whatsapp-send",
+      "name": "Preparar Envio WhatsApp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "whatsapp-not-blocked",
+              "leftValue": "={{ $json.blocked }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "can-send-whatsapp",
+      "name": "Pode Enviar WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $env.WHATSAPP_GRAPH_API_VERSION + '/' + $env.WHATSAPP_PHONE_NUMBER_ID + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.WHATSAPP_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { messaging_product: 'whatsapp', to: $json.to, type: 'text', text: { body: $json.message } } }}",
+        "options": {}
+      },
+      "id": "whatsapp-send-confirmed",
+      "name": "WhatsApp - enviar confirmado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1792,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar Envio WhatsApp').first().json;\nreturn [{ json: { reply: 'Mensagem enviada pelo WhatsApp, Chefe. Destinatario: +' + prepared.to + '.', service: 'whatsapp', operation: 'send_whatsapp_confirmed', sent: true } }];"
+      },
+      "id": "confirm-whatsapp-send",
+      "name": "WhatsApp - confirmar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, reply: $json.reply || 'Chefe, bloqueei o envio do WhatsApp porque faltou confirmacao explicita.', blocked: true } }];"
+      },
+      "id": "block-whatsapp-send",
+      "name": "WhatsApp - bloquear envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { reply: 'Chefe, nesta etapa o WhatsApp esta preparado apenas para envio confirmado. A leitura de conversas exige webhook publico e sera configurada separadamente.', service: 'whatsapp', blocked: true } }];"
+      },
+      "id": "unsupported-whatsapp-operation",
+      "name": "WhatsApp - operacao indisponivel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        368
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Jarvis": {
+      "main": [
+        [
+          {
+            "node": "Validar Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Token": {
+      "main": [
+        [
+          {
+            "node": "Preparar Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Preparar Entrada": {
+      "main": [
+        [
+          {
+            "node": "E Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa Pesquisar?": {
+      "main": [
+        [
+          {
+            "node": "Pesquisar com Tavily",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pesquisar com Tavily": {
+      "main": [
+        [
+          {
+            "node": "Formatar Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Chamar Ollama Local",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sem Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Chamar Ollama Local",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Email?": {
+      "main": [
+        [
+          {
+            "node": "E Envio Confirmado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E Agenda?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - ler emails": {
+      "main": [
+        [
+          {
+            "node": "Gmail - resumir para Jarvis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Rascunho Email?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Rascunho Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - ler emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Rascunho Gmail": {
+      "main": [
+        [
+          {
+            "node": "Pode Criar Rascunho?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - criar rascunho": {
+      "main": [
+        [
+          {
+            "node": "Gmail - confirmar rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Envio Confirmado?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E Rascunho Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio Gmail": {
+      "main": [
+        [
+          {
+            "node": "Pode Enviar Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - enviar confirmado": {
+      "main": [
+        [
+          {
+            "node": "Gmail - confirmar envio ao Jarvis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Enviar Email?": {
+      "main": [
+        [
+          {
+            "node": "Gmail - enviar confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - bloquear envio sem confirmacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Criar Rascunho?": {
+      "main": [
+        [
+          {
+            "node": "Redigir Rascunho com Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - pedir destinatario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redigir Rascunho com Ollama": {
+      "main": [
+        [
+          {
+            "node": "Formatar Rascunho IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Rascunho IA": {
+      "main": [
+        [
+          {
+            "node": "Gmail - criar rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Agenda?": {
+      "main": [
+        [
+          {
+            "node": "E Criacao de Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E WhatsApp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Criacao de Evento?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Evento Agenda",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E Alteracao de Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda - listar eventos": {
+      "main": [
+        [
+          {
+            "node": "Agenda - resumir para Jarvis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Evento Agenda": {
+      "main": [
+        [
+          {
+            "node": "Pode Criar Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Criar Evento?": {
+      "main": [
+        [
+          {
+            "node": "Agenda - criar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agenda - bloquear acao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda - criar evento": {
+      "main": [
+        [
+          {
+            "node": "Agenda - confirmar criacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Alteracao de Evento?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Alteracao Agenda",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E Exclusao de Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Exclusao de Evento?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Exclusao Agenda",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agenda - listar eventos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Alteracao Agenda": {
+      "main": [
+        [
+          {
+            "node": "Pode Alterar Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda - alterar evento": {
+      "main": [
+        [
+          {
+            "node": "Agenda - confirmar alteracao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Exclusao Agenda": {
+      "main": [
+        [
+          {
+            "node": "Pode Excluir Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda - excluir evento": {
+      "main": [
+        [
+          {
+            "node": "Agenda - confirmar exclusao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Alterar Evento?": {
+      "main": [
+        [
+          {
+            "node": "Agenda - alterar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agenda - bloquear acao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Excluir Evento?": {
+      "main": [
+        [
+          {
+            "node": "Agenda - excluir evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agenda - bloquear acao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E WhatsApp?": {
+      "main": [
+        [
+          {
+            "node": "E Envio WhatsApp Confirmado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Precisa Pesquisar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Envio WhatsApp Confirmado?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp - operacao indisponivel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Pode Enviar WhatsApp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Enviar WhatsApp?": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - enviar confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp - bloquear envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp - enviar confirmado": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - confirmar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "9c7746f2-7e77-469e-b5ef-e9a3a9653ab5",
+  "activeVersionId": "9c7746f2-7e77-469e-b5ef-e9a3a9653ab5",
+  "versionCounter": 103,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-05-27T18:13:38.508Z",
+      "createdAt": "2026-05-27T18:13:38.508Z",
+      "role": "workflow:owner",
+      "workflowId": "WzEKkdI0liWrCXny",
+      "projectId": "7lPtDPqOkIRI0TJV",
+      "project": {
+        "updatedAt": "2026-05-27T18:11:45.100Z",
+        "createdAt": "2026-05-27T17:49:33.895Z",
+        "id": "7lPtDPqOkIRI0TJV",
+        "name": "Ruan Rychard <ruanrychard@icloud.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "79467ead-5d81-4281-a760-61be77e77167"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

@@ -1,0 +1,17 @@
+models/
+tarefas.json
+__pycache__/
+.env
+*.log
+n8n-export-*.json
+n8n-workflow-*-import.json
+inspect_n8n_db.js
+memoria-obsidian/jarvis_memory.json
+memoria-obsidian/.obsidian/
+memoria-obsidian/*.md
+!memoria-obsidian/README.md
+backups/
+restored/
+node_modules/
+dist/
+.tools/
