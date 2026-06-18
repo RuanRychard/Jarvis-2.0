@@ -2,6 +2,8 @@
 
 Interface premium de assistente pessoal com voz, memoria local, automacoes via n8n e integracoes com Gmail, Google Agenda, ElevenLabs, Ollama e fluxos futuros de WhatsApp.
 
+[Acessar a pagina publica do Jarvis 2.0](https://ruanrychard.github.io/Jarvis-2.0/)
+
 O foco do projeto e ser apresentavel em portfolio e entrevista: uma tela limpa, dark, responsiva, com orb central animada, comandos por voz/texto e acoes sempre confirmadas antes de enviar emails, mensagens ou criar eventos.
 
 ## Stack
