@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  base: "/Jarvis-2.0/",
   plugins: [react(), tailwindcss()],
   build: {
     outDir: "dist",
